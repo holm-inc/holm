@@ -36,6 +36,7 @@ function fake(overrides: Partial<Record<Op, (args: Record<string, unknown>) => u
   const calls: [Op, Record<string, unknown>][] = [];
   let takenOver = false;
   let recording = false;
+  let active = "w2";
   const answers: Record<Op, (args: Record<string, unknown>) => unknown> = {
     connect: (args) => ({ url: `wss://box/socket?mode=${String(args.mode)}`, expires_at_ms: 0 }),
     status: () => ({
@@ -46,8 +47,14 @@ function fake(overrides: Partial<Record<Op, (args: Record<string, unknown>) => u
     give_back: () => ((takenOver = false), {}),
     start_recording: () => ((recording = true), { recording }),
     stop_recording: () => ((recording = false), { recording }),
-    windows: () => [{ id: "w1", title: "Chrome" }],
-    focus_window: () => ({}),
+    windows: () => ({
+      windows: [
+        { id: "w1", title: "Chrome", class: "Chromium" },
+        { id: "w2", title: "Terminal", class: "XTerm" },
+      ],
+      active,
+    }),
+    focus_window: (args) => ((active = String(args.window)), {}),
     close_window: () => ({}),
     clipboard: () => ({ text: "from the box" }),
     set_clipboard: () => ({}),
@@ -96,13 +103,44 @@ describe("HolmViewer", () => {
     await screen.findByText("Record");
   });
 
-  it("lists windows and focuses one", async () => {
+  it("docks the windows, marks the active one, and focuses on a click", async () => {
     const { controller, calls } = fake();
     render(<HolmViewer controller={controller} pollMs={60_000} />);
-    fireEvent.click(screen.getByText("Windows"));
-    await screen.findByText("Chrome");
-    fireEvent.click(screen.getByText("Focus"));
+    const chrome = await screen.findByLabelText("Focus Chrome");
+    expect(screen.getByLabelText("Focus Terminal").getAttribute("aria-current")).toBe("true");
+    expect(chrome.textContent).toBe("C");
+    fireEvent.click(chrome);
     await waitFor(() => expect(calls).toContainEqual(["focus_window", { window: "w1" }]));
+    expect(chrome.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("keeps the dock's order when the stacking order changes", async () => {
+    let order = ["w1", "w2"];
+    const all = { w1: { id: "w1", title: "Chrome" }, w2: { id: "w2", title: "Terminal" } } as const;
+    const { controller } = fake({
+      windows: () => ({ windows: order.map((id) => all[id as "w1" | "w2"]), active: order.at(-1) }),
+      focus_window: (args) => ((order = [...order.filter((id) => id !== args.window), String(args.window)]), {}),
+    });
+    render(<HolmViewer controller={controller} pollMs={60_000} />);
+    fireEvent.click(await screen.findByLabelText("Focus Chrome"));
+    await waitFor(() => expect(screen.getByLabelText("Focus Chrome").getAttribute("aria-current")).toBe("true"));
+    const labels = screen.getAllByRole("button", { name: /^Focus / }).map((button) => button.getAttribute("aria-label"));
+    expect(labels).toEqual(["Focus Chrome", "Focus Terminal"]);
+  });
+
+  it("closes a window from the dock", async () => {
+    const { controller, calls } = fake();
+    render(<HolmViewer controller={controller} pollMs={60_000} />);
+    fireEvent.click(await screen.findByLabelText("Close Terminal"));
+    await waitFor(() => expect(calls).toContainEqual(["close_window", { window: "w2" }]));
+  });
+
+  it("leaves the dock out when asked", async () => {
+    const { controller, calls } = fake();
+    render(<HolmViewer controller={controller} dock={false} pollMs={60_000} />);
+    await screen.findByText(/Watching/);
+    expect(screen.queryByRole("navigation", { name: "Windows" })).toBeNull();
+    expect(calls.map(([op]) => op)).not.toContain("windows");
   });
 
   it("reads and sends the clipboard", async () => {
@@ -139,15 +177,13 @@ describe("HolmViewer", () => {
     await screen.findByDisplayValue("copied in the box");
   });
 
-  it("disables window actions while driving", async () => {
+  it("only shows the dock while driving", async () => {
     const { controller } = fake();
     render(<HolmViewer controller={controller} pollMs={60_000} />);
     fireEvent.click(await screen.findByText("Take over"));
     await screen.findByText(/You are driving/);
-    fireEvent.click(screen.getByText("Windows"));
-    await screen.findByText("Chrome");
-    expect((screen.getByText("Focus") as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByText("Close") as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Focus Chrome") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByLabelText("Close Chrome")).toBeNull();
   });
 
   it("hides the controls when read only", async () => {
@@ -156,6 +192,8 @@ describe("HolmViewer", () => {
     await screen.findByText(/Watching/);
     expect(screen.queryByText("Take over")).toBeNull();
     expect(screen.queryByText("Record")).toBeNull();
+    expect((await screen.findByLabelText("Focus Chrome") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByLabelText("Close Chrome")).toBeNull();
   });
 
   it("stops at a refusal it cannot retry", async () => {

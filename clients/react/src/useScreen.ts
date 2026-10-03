@@ -6,6 +6,7 @@ import type { Op, Ops, ScreenStatus, ViewerMode } from "./protocol.js";
 export interface UseScreenOptions {
   pollMs?: number;
   readOnly?: boolean;
+  watchWindows?: boolean;
 }
 
 export interface ScreenHandle {
@@ -15,6 +16,7 @@ export interface ScreenHandle {
   busy: boolean;
   error: string | null;
   windows: Window[];
+  activeWindow: string | null;
   takeover(): Promise<void>;
   giveBack(): Promise<void>;
   startRecording(fps?: number): Promise<void>;
@@ -34,24 +36,37 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [windows, setWindows] = useState<Window[]>([]);
+  const [activeWindow, setActiveWindow] = useState<string | null>(null);
+  const watchWindows = options.watchWindows ?? false;
   const current = useRef(controller);
   current.current = controller;
 
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const next = await current.current.call("status", {}, signal);
-      setStatus(next);
-      if (!next.viewers.taken_over) setDriving(false);
-    } catch (failure) {
-      if (!signal?.aborted) setError(message(failure));
-    }
-  }, []);
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const [next, listed] = await Promise.all([
+          current.current.call("status", {}, signal),
+          watchWindows ? current.current.call("windows", {}, signal) : null,
+        ]);
+        setStatus(next);
+        if (!next.viewers.taken_over) setDriving(false);
+        if (listed) {
+          setWindows(listed.windows);
+          setActiveWindow(listed.active);
+        }
+      } catch (failure) {
+        if (!signal?.aborted) setError(message(failure));
+      }
+    },
+    [watchWindows],
+  );
 
   useEffect(() => {
     const abort = new AbortController();
     setStatus(null);
     setDriving(false);
     setWindows([]);
+    setActiveWindow(null);
     void refresh(abort.signal);
     const timer = setInterval(() => void refresh(abort.signal), pollMs);
     return () => {
@@ -102,11 +117,15 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
 
   const refreshWindows = useCallback(async () => {
     const listed = await run("windows", {});
-    if (listed) setWindows(listed);
+    if (listed) {
+      setWindows(listed.windows);
+      setActiveWindow(listed.active);
+    }
   }, [run]);
 
   const focusWindow = useCallback(
     async (id: string) => {
+      setActiveWindow(id);
       await run("focus_window", { window: id });
       await refreshWindows();
     },
@@ -137,6 +156,7 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
     busy,
     error,
     windows,
+    activeWindow,
     takeover,
     giveBack,
     startRecording,

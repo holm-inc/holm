@@ -62,8 +62,10 @@ async function run(call: Call, screen: ReturnType<ReturnType<Holm["box"]>["scree
       return screen.startRecording((call as Call<"start_recording">).fps);
     case "stop_recording":
       return screen.stopRecording();
-    case "windows":
-      return screen.windows.list();
+    case "windows": {
+      const [windows, active] = await Promise.all([screen.windows.list(), screen.windows.active()]);
+      return { windows, active: active?.id ?? null };
+    }
     case "focus_window":
       await screen.windows.focus((call as Call<"focus_window">).window);
       return {};

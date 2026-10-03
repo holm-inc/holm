@@ -7,6 +7,11 @@ export interface Connection {
   expires_at_ms: number;
 }
 
+export interface WindowList {
+  windows: Window[];
+  active: string | null;
+}
+
 export interface ScreenStatus {
   viewers: ViewersView;
   recording: RecordingView;
@@ -19,7 +24,7 @@ export interface Ops {
   give_back: { args: {}; answer: {} };
   start_recording: { args: { fps?: number }; answer: RecordingView };
   stop_recording: { args: {}; answer: RecordingView };
-  windows: { args: {}; answer: Window[] };
+  windows: { args: {}; answer: WindowList };
   focus_window: { args: { window: string }; answer: {} };
   close_window: { args: { window: string }; answer: {} };
   clipboard: { args: {}; answer: ClipboardView };

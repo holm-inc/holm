@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ScreenController } from "./controller.js";
+import { HolmDock } from "./HolmDock.js";
 import { HolmScreen, type LinkState, type ScreenLink } from "./HolmScreen.js";
 import { useScreen } from "./useScreen.js";
 
@@ -7,22 +8,24 @@ export interface HolmViewerProps {
   controller: ScreenController;
   readOnly?: boolean;
   pollMs?: number;
+  dock?: boolean;
   aspectRatio?: string;
   className?: string;
   style?: CSSProperties;
 }
 
-type Drawer = "windows" | "clipboard" | null;
+type Drawer = "clipboard" | null;
 
 export function HolmViewer({
   controller,
   readOnly = false,
   pollMs,
+  dock = true,
   aspectRatio = "16 / 10",
   className,
   style,
 }: HolmViewerProps) {
-  const screen = useScreen(controller, { pollMs, readOnly });
+  const screen = useScreen(controller, { pollMs, readOnly, watchWindows: dock });
   const root = useRef<HTMLDivElement>(null);
   const linkRef = useRef<ScreenLink | null>(null);
   const [link, setLink] = useState<{ state: LinkState; reason?: string | undefined }>({ state: "connecting" });
@@ -37,10 +40,7 @@ export function HolmViewer({
   }, []);
 
   const recording = screen.status?.recording.recording ?? false;
-  const toggle = (next: Drawer) => {
-    setDrawer(drawer === next ? null : next);
-    if (next === "windows" && drawer !== "windows") void screen.refreshWindows();
-  };
+  const toggle = (next: Drawer) => setDrawer(drawer === next ? null : next);
   const sendClipboard = () => {
     if (screen.driving && linkRef.current) linkRef.current.paste(clip);
     else void screen.writeClipboard(clip);
@@ -91,11 +91,6 @@ export function HolmViewer({
             </button>
           ))}
         {!readOnly && (
-          <button type="button" aria-pressed={drawer === "windows"} onClick={() => toggle("windows")}>
-            Windows
-          </button>
-        )}
-        {!readOnly && (
           <button type="button" aria-pressed={drawer === "clipboard"} onClick={() => toggle("clipboard")}>
             Clipboard
           </button>
@@ -104,41 +99,6 @@ export function HolmViewer({
           {full ? "Exit full screen" : "Full screen"}
         </button>
       </div>
-
-      {drawer === "windows" && (
-        <div className="holm-viewer__drawer">
-          {screen.windows.length === 0 ? (
-            <p className="holm-viewer__empty">No windows are open.</p>
-          ) : (
-            <ul className="holm-viewer__windows">
-              {screen.windows.map((window) => (
-                <li key={window.id}>
-                  <span title={window.class}>{window.title || window.class || window.id}</span>
-                  <button
-                    type="button"
-                    disabled={screen.busy || screen.driving}
-                    title={screen.driving ? "You are driving: use the screen" : undefined}
-                    onClick={() => void screen.focusWindow(window.id)}
-                  >
-                    Focus
-                  </button>
-                  <button
-                    type="button"
-                    disabled={screen.busy || screen.driving}
-                    title={screen.driving ? "You are driving: use the screen" : undefined}
-                    onClick={() => void screen.closeWindow(window.id)}
-                  >
-                    Close
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button type="button" disabled={screen.busy} onClick={() => void screen.refreshWindows()}>
-            Refresh
-          </button>
-        </div>
-      )}
 
       {drawer === "clipboard" && (
         <div className="holm-viewer__drawer">
@@ -186,6 +146,17 @@ export function HolmViewer({
           linkRef={linkRef}
         />
       </div>
+
+      {dock && (
+        <HolmDock
+          windows={screen.windows}
+          active={screen.activeWindow}
+          disabled={screen.busy || screen.driving}
+          disabledReason={screen.driving ? "you are driving; use the screen" : undefined}
+          onFocus={readOnly ? undefined : (id) => void screen.focusWindow(id)}
+          onClose={readOnly ? undefined : (id) => void screen.closeWindow(id)}
+        />
+      )}
     </div>
   );
 }

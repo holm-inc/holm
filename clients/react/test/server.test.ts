@@ -59,6 +59,15 @@ describe("screen handler", () => {
     expect(body).toMatchObject({ viewers: { watching: 1 }, recording: { recording: true } });
   });
 
+  it("names the active window with the list", async () => {
+    const { holm: client } = holm((url) =>
+      url.pathname.endsWith("/active") ? json({ id: "w2", title: "T" }) : json([{ id: "w1", title: "A" }, { id: "w2", title: "T" }]),
+    );
+    const handle = createScreenHandler({ holm: client, authorize: () => true });
+    const body = await (await handle(post({ op: "windows", box_id: "b", screen: 0 }))).json();
+    expect(body).toEqual({ windows: [{ id: "w1", title: "A" }, { id: "w2", title: "T" }], active: "w2" });
+  });
+
   it("passes a refusal through", async () => {
     const { holm: client } = holm(() => json({ code: "not_found", message: "no box b", retryable: false }, 404));
     const handle = createScreenHandler({ holm: client, authorize: () => true });
@@ -76,12 +85,14 @@ describe("screen handler", () => {
       [{ op: "start_recording", fps: 10 }, "POST /v1/boxes/b/screens/1/recording"],
       [{ op: "stop_recording" }, "DELETE /v1/boxes/b/screens/1/recording"],
       [{ op: "windows" }, "GET /v1/boxes/b/screens/1/windows"],
+      [{ op: "windows" }, "GET /v1/boxes/b/screens/1/windows/active"],
       [{ op: "focus_window", window: "w1" }, "POST /v1/boxes/b/screens/1/windows/w1/focus"],
       [{ op: "close_window", window: "w1" }, "DELETE /v1/boxes/b/screens/1/windows/w1"],
       [{ op: "clipboard" }, "GET /v1/boxes/b/screens/1/clipboard"],
       [{ op: "set_clipboard", text: "x" }, "PUT /v1/boxes/b/screens/1/clipboard"],
     ];
-    for (const [call] of calls) await handle(post({ ...call, box_id: "b", screen: 1 }));
-    expect(seen).toEqual(calls.map(([, route]) => route));
+    const sent = calls.filter(([call], i) => !(call.op === "windows" && calls[i - 1]?.[0].op === "windows"));
+    for (const [call] of sent) await handle(post({ ...call, box_id: "b", screen: 1 }));
+    expect([...seen].sort()).toEqual(calls.map(([, route]) => route).sort());
   });
 });

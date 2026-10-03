@@ -34,14 +34,15 @@ const controller = screenController({ endpoint: "/api/screen", boxId });
 <HolmViewer controller={controller} />;
 ```
 
-`HolmViewer` has the screen and a panel: take over and give back, start and stop recording, the window list (focus, close), the clipboard, the viewer count, and full screen. `readOnly` shows the screen with no controls.
+`HolmViewer` has the screen, a toolbar (take over and give back, start and stop recording, the clipboard, the viewer count, full screen) and a dock of the screen's windows. Click a window in the dock to bring it to the front; the × on hover closes it. The dock keeps its order as windows are raised, and follows windows that the agent opens and closes. `dock={false}` leaves it out, and `readOnly` shows the screen and dock with no controls.
 
-While the person drives, the server refuses API input to the screen, so the panel sends the clipboard over the screen connection and disables the window actions; the person can use the screen directly.
+While the person drives, the server refuses API input to the screen, so the panel sends the clipboard over the screen connection and the dock only shows the windows; the person can use the screen directly.
 
 ## Parts
 
 - `HolmScreen` is the screen alone. Set `mode` to `"view"` or `"control"`.
-- `useScreen(controller)` holds the state and actions of the panel, for a panel of your own.
+- `HolmDock` is the dock alone.
+- `useScreen(controller, { watchWindows: true })` holds the state and actions of the panel, for a panel of your own.
 - Override the `--holm-*` CSS variables on `.holm-viewer` to change the colors.
 
 ## Bundling
