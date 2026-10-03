@@ -53,6 +53,12 @@ The OpenAPI spec the clients under `clients/` are generated from is committed, a
 cargo run -p holm-server --example openapi
 ```
 
+The TypeScript client's types are generated from that spec and committed, and its tests fail when an operation in the spec has no client method:
+
+```bash
+cd clients/typescript && npm ci && npm run generate && git diff --exit-code -- src/schema.ts && npm run check && npm test
+```
+
 The shell that goes inside an image is not compiled either:
 
 ```bash

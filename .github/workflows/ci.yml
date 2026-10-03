@@ -107,6 +107,27 @@ jobs:
           crates/holm-mcp/ui/build.sh
           git diff --exit-code -- crates/holm-mcp/ui/screen.html
 
+  typescript:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: clients/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: clients/typescript/package-lock.json
+      - run: npm ci
+      - name: The committed types are what the spec generates
+        run: |
+          npm run generate
+          git diff --exit-code -- src/schema.ts
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+
   deny:
     runs-on: ubuntu-22.04
     steps:
