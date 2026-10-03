@@ -1,0 +1,5 @@
+{
+  "name": "holm-clients",
+  "private": true,
+  "workspaces": ["typescript", "react"]
+}

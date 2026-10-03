@@ -53,10 +53,12 @@ The OpenAPI spec the clients under `clients/` are generated from is committed, a
 cargo run -p holm-server --example openapi
 ```
 
-The TypeScript client's types are generated from that spec and committed, and its tests fail when an operation in the spec has no client method:
+The TypeScript client's types are generated from that spec and committed, and its tests fail when an operation in the spec has no client method. `clients/` is one npm workspace with the client and the React components, which build on the client:
 
 ```bash
-cd clients/typescript && npm ci && npm run generate && git diff --exit-code -- src/schema.ts && npm run check && npm test
+cd clients && npm ci
+npm run generate -w @holm/client && git diff --exit-code -- typescript/src/schema.ts
+npm run build -w @holm/client && npm run check --workspaces && npm test --workspaces
 ```
 
 The shell that goes inside an image is not compiled either:

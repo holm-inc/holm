@@ -111,22 +111,23 @@ jobs:
     runs-on: ubuntu-22.04
     defaults:
       run:
-        working-directory: clients/typescript
+        working-directory: clients
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: clients/typescript/package-lock.json
+          cache-dependency-path: clients/package-lock.json
       - run: npm ci
       - name: The committed types are what the spec generates
         run: |
-          npm run generate
-          git diff --exit-code -- src/schema.ts
-      - run: npm run check
-      - run: npm test
-      - run: npm run build
+          npm run generate -w @holm/client
+          git diff --exit-code -- typescript/src/schema.ts
+      - run: npm run build -w @holm/client
+      - run: npm run check --workspaces
+      - run: npm test --workspaces
+      - run: npm run build -w @holm/react
 
   deny:
     runs-on: ubuntu-22.04
