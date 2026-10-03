@@ -22,12 +22,21 @@ const LONGEST_LIFE: Duration = Duration::from_secs(24 * 60 * 60);
 
 const LARGEST_MESSAGE: usize = 256 << 20;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 pub struct TokenQuery {
     #[serde(default)]
     ttl_secs: Option<u64>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/cdp",
+    tag = "pages",
+    operation_id = "token",
+    params(("id" = String, Path), TokenQuery),
+    responses((status = 200, description = "Done", body = CdpToken), (status = "default", description = "The failure, as an ErrorBody", body = holm_api::ErrorBody))
+)]
 pub async fn token(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,

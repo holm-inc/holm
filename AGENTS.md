@@ -47,6 +47,12 @@ crates/holm-mcp/ui/build.sh
 git diff --exit-code -- crates/holm-mcp/ui/screen.html
 ```
 
+The OpenAPI spec the clients under `clients/` are generated from is committed, and `cargo test -p holm-server --test openapi` fails when it is not what the routes describe:
+
+```bash
+cargo run -p holm-server --example openapi
+```
+
 The shell that goes inside an image is not compiled either:
 
 ```bash

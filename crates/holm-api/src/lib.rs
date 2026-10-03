@@ -7,6 +7,7 @@ pub use holm_types::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct CreateBox {
     #[serde(default)]
@@ -16,6 +17,7 @@ pub struct CreateBox {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BoxView {
     pub id: String,
     #[serde(default = "on_docker")]
@@ -40,6 +42,7 @@ pub struct BoxView {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum BoxState {
     Ready,
@@ -54,6 +57,7 @@ pub enum BoxState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Health {
     pub ok: bool,
     pub service: String,
@@ -62,11 +66,13 @@ pub struct Health {
 pub const SERVICE: &str = "holm-server";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BoxList {
     pub boxes: Vec<BoxView>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RuntimeView {
     pub name: String,
     pub provider: String,
@@ -83,11 +89,13 @@ pub struct RuntimeView {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RuntimeList {
     pub runtimes: Vec<RuntimeView>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PrepareImage {
     #[serde(default)]
@@ -95,6 +103,7 @@ pub struct PrepareImage {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PreparedImage {
     pub runtime: String,
     pub image: String,
@@ -107,6 +116,7 @@ pub struct PreparedImage {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ImageState {
     #[default]
@@ -122,6 +132,7 @@ impl ImageState {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ImageView {
     pub runtime: String,
     pub spec_digest: String,
@@ -132,22 +143,26 @@ pub struct ImageView {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ImageList {
     pub images: Vec<ImageView>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct InstallApps {
     pub apps: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct InstalledApps {
     pub installed: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct NewRuntime {
     pub name: String,
@@ -159,6 +174,7 @@ pub struct NewRuntime {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ChangeRuntime {
     #[serde(default)]
@@ -168,6 +184,7 @@ pub struct ChangeRuntime {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Source {
     Found,
@@ -177,6 +194,7 @@ pub enum Source {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum PlaceKind {
     Host,
@@ -184,6 +202,7 @@ pub enum PlaceKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeState {
     Ready,
@@ -195,6 +214,7 @@ fn on_docker() -> String {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
     Move {
@@ -407,6 +427,7 @@ pub enum Action {
 // Adjacently tagged: an internal tag cannot carry a variant that holds a
 // sequence, and half of these are lists.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "is", content = "saw", rename_all = "snake_case")]
 pub enum Out {
     Value(Evaluated),
@@ -432,6 +453,7 @@ pub enum Out {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PageRead {
     #[serde(default)]
@@ -445,6 +467,7 @@ pub struct PageRead {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "do", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WindowOp {
     Focus,
@@ -453,6 +476,7 @@ pub enum WindowOp {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "do", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RecordOp {
     Start {
@@ -464,6 +488,7 @@ pub enum RecordOp {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum OnNode {
     Tree {
@@ -492,6 +517,7 @@ pub enum OnNode {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct NodeResult {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub nodes: Vec<Node>,
@@ -502,6 +528,7 @@ pub struct NodeResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PageText {
     pub url: String,
     pub title: String,
@@ -511,12 +538,14 @@ pub struct PageText {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Link {
     pub text: String,
     pub href: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Element {
     pub text: String,
     pub tag: String,
@@ -617,6 +646,7 @@ impl Element {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum OnElement {
     Click {
@@ -722,6 +752,7 @@ pub enum OnElement {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Where {
     Back,
@@ -730,6 +761,7 @@ pub enum Where {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ScrollTo {
     #[default]
@@ -739,6 +771,7 @@ pub enum ScrollTo {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ElementResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub element: Option<Element>,
@@ -763,6 +796,7 @@ pub struct ElementResult {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Reading {
     #[default]
@@ -772,6 +806,7 @@ pub enum Reading {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct AwaitWindow {
     pub class: String,
@@ -780,6 +815,7 @@ pub struct AwaitWindow {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Want {
     Frame,
@@ -787,6 +823,7 @@ pub enum Want {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ActionBatch {
     pub actions: Vec<Action>,
@@ -804,6 +841,7 @@ pub struct ActionBatch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BatchResult {
     pub results: Vec<ActionResult>,
     pub stopped_at: Option<usize>,
@@ -825,18 +863,21 @@ pub struct BatchResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Holding {
     pub button: Button,
     pub until_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HoldingKey {
     pub key: String,
     pub until_ms: u64,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum OpenIn {
     #[default]
@@ -845,6 +886,7 @@ pub enum OpenIn {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Find {
     pub query: String,
     pub limit: Option<usize>,
@@ -855,6 +897,7 @@ pub struct Find {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SnapshotOptions {
     /// A query as `find` takes one; the listing is what its first match holds.
     pub scope: Option<String>,
@@ -867,6 +910,7 @@ pub struct SnapshotOptions {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Snapshot {
     pub url: String,
     pub title: String,
@@ -879,6 +923,7 @@ pub struct Snapshot {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Changes {
     /// Nothing to compare with, so the whole listing came instead.
     #[serde(default)]
@@ -968,6 +1013,7 @@ impl Snapshot {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Evaluate {
     pub expression: String,
@@ -978,6 +1024,7 @@ pub struct Evaluate {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Evaluated {
     pub json: String,
     #[serde(default)]
@@ -985,6 +1032,7 @@ pub struct Evaluated {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Tab {
     pub id: String,
     pub title: String,
@@ -995,6 +1043,7 @@ pub struct Tab {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ActionResult {
     pub index: usize,
     pub ok: bool,
@@ -1006,6 +1055,7 @@ pub struct ActionResult {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Shot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1029,6 +1079,7 @@ impl Shot {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PageShot {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -1045,6 +1096,7 @@ pub struct PageShot {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PagePdf {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -1058,6 +1110,7 @@ pub struct PagePdf {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SaveState {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1073,6 +1126,7 @@ pub struct SaveState {
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct LoadState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1082,6 +1136,7 @@ pub struct LoadState {
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct StateView {
     pub origins: Vec<String>,
     pub cookies: usize,
@@ -1117,6 +1172,7 @@ impl std::fmt::Debug for StateView {
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Cookie {
     pub name: String,
     pub value: String,
@@ -1144,6 +1200,7 @@ impl std::fmt::Debug for Cookie {
 }
 
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct CookieSet {
     pub name: String,
@@ -1173,6 +1230,7 @@ impl std::fmt::Debug for CookieSet {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SetCookies {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1181,11 +1239,13 @@ pub struct SetCookies {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Cleared {
     pub cleared: usize,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ConsoleRead {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -1199,6 +1259,7 @@ pub struct ConsoleRead {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ConsoleLine {
     pub level: String,
     pub text: String,
@@ -1207,6 +1268,7 @@ pub struct ConsoleLine {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ConsoleView {
     pub lines: Vec<ConsoleLine>,
     #[serde(default)]
@@ -1214,6 +1276,7 @@ pub struct ConsoleView {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Printed {
     pub bytes: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1223,6 +1286,7 @@ pub struct Printed {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Picture {
     #[default]
@@ -1231,6 +1295,7 @@ pub enum Picture {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Captured {
     pub format: Picture,
     pub bytes: usize,
@@ -1240,6 +1305,7 @@ pub struct Captured {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Frame {
     pub hash: String,
     pub unchanged: bool,
@@ -1248,6 +1314,7 @@ pub struct Frame {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorBody {
     pub code: ErrorCode,
     pub message: String,
@@ -1255,6 +1322,7 @@ pub struct ErrorBody {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     BadRequest,
@@ -1271,6 +1339,7 @@ pub enum ErrorCode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ExecRequest {
     pub argv: Vec<String>,
@@ -1279,6 +1348,7 @@ pub struct ExecRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ExecResponse {
     pub code: i32,
     pub stdout: String,
@@ -1287,6 +1357,7 @@ pub struct ExecResponse {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct WriteFile {
     pub path: String,
@@ -1294,12 +1365,14 @@ pub struct WriteFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ReadFile {
     pub path: String,
     pub contents_base64: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Globbing {
     pub pattern: String,
@@ -1310,6 +1383,7 @@ pub struct Globbing {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Found {
     pub matches: Vec<holm_types::Match>,
     /// There were more; the cap stopped it.
@@ -1317,18 +1391,21 @@ pub struct Found {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Globbed {
     pub paths: Vec<String>,
     pub cut: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Listing {
     pub path: String,
     pub entries: Vec<holm_types::DirEntry>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct TakeoverRequest {
     #[serde(default)]
@@ -1336,6 +1413,7 @@ pub struct TakeoverRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TakeoverView {
     pub url: Option<String>,
     pub exclusive: bool,
@@ -1343,6 +1421,7 @@ pub struct TakeoverView {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ViewersView {
     pub watching: usize,
     pub driving: usize,
@@ -1354,6 +1433,7 @@ pub struct ViewersView {
 
 /// Opens the viewer socket of one screen for a while, from a browser that can send no header.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ViewerTicket {
     pub ticket: String,
     pub expires_at_ms: u64,
@@ -1364,6 +1444,7 @@ pub struct ViewerTicket {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct CdpToken {
     pub url: String,
     pub ws_url: String,
@@ -1371,6 +1452,7 @@ pub struct CdpToken {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RecordingView {
     pub recording: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1378,6 +1460,7 @@ pub struct RecordingView {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct StartRecording {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1385,11 +1468,13 @@ pub struct StartRecording {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ClipboardView {
     pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct SetClipboard {
     pub text: String,
@@ -1399,6 +1484,7 @@ pub struct SetClipboard {
 
 /// `Person` marks custody, never input: a person's keystrokes go over VNC.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Actor {
     Agent,
@@ -1407,6 +1493,7 @@ pub enum Actor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TraceEvent {
     /// Boxed: a trace holds thousands of entries.
@@ -1490,6 +1577,7 @@ pub enum TraceEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TraceEntry {
     pub seq: u64,
     pub at_ms: u64,
@@ -1500,12 +1588,14 @@ pub struct TraceEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct TraceView {
     pub entries: Vec<TraceEntry>,
     pub next: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ForkRequest {
     #[serde(default)]
@@ -1517,6 +1607,7 @@ pub struct ForkRequest {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ForkMode {
     #[default]
@@ -1525,6 +1616,7 @@ pub enum ForkMode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ForkResult {
     #[serde(rename = "box")]
     pub created: BoxView,
@@ -1532,6 +1624,7 @@ pub struct ForkResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ReplayReport {
     pub attempted: usize,
     pub ok: usize,
@@ -1543,6 +1636,7 @@ pub struct ReplayReport {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Skipped {
     pub seq: u64,
     pub kind: String,

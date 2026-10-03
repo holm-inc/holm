@@ -194,6 +194,14 @@ impl Doors {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/viewer/ticket",
+    tag = "viewer",
+    operation_id = "ticket",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = ViewerTicket), (status = "default", description = "The failure, as an ErrorBody", body = holm_api::ErrorBody))
+)]
 pub async fn ticket(
     State(state): State<std::sync::Arc<AppState>>,
     Extension(caller): Extension<Caller>,
