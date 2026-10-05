@@ -9,6 +9,8 @@ pub const READY_MS: u64 = 30_000;
 
 const AS_ROOT: &str = r#"if [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1; then exec sudo -n sh -c "$1"; fi; exec sh -c "$1""#;
 
+const SVG_LOADER: &str = "librsvg2-common";
+
 pub fn builtin() -> BTreeMap<String, App> {
     let mut apps = BTreeMap::new();
 
@@ -25,7 +27,7 @@ pub fn builtin() -> BTreeMap<String, App> {
     apps.insert(
         "gimp".to_string(),
         App {
-            packages: vec!["gimp".to_string()],
+            packages: vec!["gimp".to_string(), SVG_LOADER.to_string()],
             command: vec!["gimp".to_string()],
             window: Some(WindowMatch::Class("gimp".to_string())),
             ..App::default()
@@ -35,7 +37,7 @@ pub fn builtin() -> BTreeMap<String, App> {
     apps.insert(
         "files".to_string(),
         App {
-            packages: vec!["thunar".to_string()],
+            packages: vec!["thunar".to_string(), SVG_LOADER.to_string()],
             command: vec!["thunar".to_string()],
             window: Some(WindowMatch::Class("Thunar".to_string())),
             ..App::default()
@@ -45,7 +47,7 @@ pub fn builtin() -> BTreeMap<String, App> {
     apps.insert(
         "text-editor".to_string(),
         App {
-            packages: vec!["mousepad".to_string()],
+            packages: vec!["mousepad".to_string(), SVG_LOADER.to_string()],
             command: vec!["mousepad".to_string()],
             window: Some(WindowMatch::Class("Mousepad".to_string())),
             ..App::default()
@@ -215,15 +217,21 @@ fn script(wanted: &BTreeMap<String, App>) -> String {
             .and_then(|program| program.rsplit('/').next())
             .unwrap_or_default();
 
+        let program = plain(icon);
+
         lines.push("mkdir -p /usr/share/applications".to_string());
         lines.push(format!(
+            "entry=/usr/share/applications/{program}.desktop; \
+             [ -f \"$entry\" ] || entry=$(grep -l -E '^Exec={program}( |$)' /usr/share/applications/*.desktop 2>/dev/null | grep -v /holm- | head -n1); \
+             icon=$(sed -n 's/^Icon=//p' \"$entry\" 2>/dev/null | head -n1)"
+        ));
+        lines.push(format!(
             "printf '%s\\n' '[Desktop Entry]' 'Type=Application' 'Name={}' \
-             'Exec=holm-launch {} {}' 'Icon={}' 'Terminal=false' \
+             'Exec=holm-launch {} {}' \"Icon=${{icon:-{program}}}\" 'Terminal=false' \
              > /usr/share/applications/holm-app-{}.desktop",
             plain(name),
             plain(&class),
             plain(&command),
-            plain(icon),
             plain(name)
         ));
     }
@@ -259,7 +267,11 @@ mod tests {
         let spec = spec_with(BTreeMap::from([("gimp".to_string(), App::default())]));
         let app = resolve(&spec, "gimp").expect("a known app");
 
-        assert_eq!(app.packages, vec!["gimp".to_string()]);
+        assert_eq!(
+            app.packages,
+            vec!["gimp".to_string(), "librsvg2-common".to_string()],
+            "GTK draws its tool icons from SVG, and without the loader each one is a broken image"
+        );
         assert_eq!(app.command, vec!["gimp".to_string()]);
     }
 
@@ -354,6 +366,17 @@ mod installing {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn test_a_launcher_takes_the_icon_its_package_names() {
+        let said = script(&wanted(&["files"]));
+
+        assert!(
+            said.contains("/usr/share/applications/thunar.desktop"),
+            "thunar's icon is org.xfce.thunar, which only its own entry says: {said}"
+        );
+        assert!(said.contains("Icon=${icon:-thunar}"), "{said}");
     }
 
     #[test]
