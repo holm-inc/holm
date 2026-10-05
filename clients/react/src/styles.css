@@ -186,6 +186,18 @@
   transition: transform 120ms ease;
 }
 
+.holm-viewer .holm-dock__tile[data-icon],
+.holm-dock__tile[data-icon] {
+  background: transparent;
+}
+
+.holm-dock__icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .holm-dock__tile:not(:disabled):hover {
   transform: translateY(-3px);
 }

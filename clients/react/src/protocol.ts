@@ -27,6 +27,7 @@ export interface Ops {
   windows: { args: {}; answer: WindowList };
   focus_window: { args: { window: string }; answer: {} };
   close_window: { args: { window: string }; answer: {} };
+  window_icon: { args: { window: string }; answer: { icon: string | null } };
   clipboard: { args: {}; answer: ClipboardView };
   set_clipboard: { args: { text: string }; answer: {} };
 }
@@ -43,6 +44,7 @@ export const OPS: readonly Op[] = [
   "windows",
   "focus_window",
   "close_window",
+  "window_icon",
   "clipboard",
   "set_clipboard",
 ];

@@ -58,6 +58,7 @@ import type {
   ViewersView,
   ViewerTicket,
   Window,
+  WindowIcon,
   operations,
 } from "./schema.js";
 
@@ -402,6 +403,10 @@ export class Windows {
 
   focus(id: string): Promise<void> {
     return this.transport.nothing({ method: "POST", path: `${this.at(id)}/focus` });
+  }
+
+  icon(id: string): Promise<WindowIcon> {
+    return this.transport.json({ method: "GET", path: `${this.at(id)}/icon` });
   }
 
   arrange(id: string, body: Arrange): Promise<Window> {

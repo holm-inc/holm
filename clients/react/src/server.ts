@@ -72,6 +72,10 @@ async function run(call: Call, screen: ReturnType<ReturnType<Holm["box"]>["scree
     case "close_window":
       await screen.windows.close((call as Call<"close_window">).window);
       return {};
+    case "window_icon": {
+      const { png_base64 } = await screen.windows.icon((call as Call<"window_icon">).window);
+      return { icon: png_base64 ? `data:image/png;base64,${png_base64}` : null };
+    }
     case "clipboard":
       return screen.clipboard();
     case "set_clipboard":
@@ -91,7 +95,8 @@ function parse(body: unknown): Call {
   if (call.op === "connect" && call.mode !== "view" && call.mode !== "control") {
     throw new Error("mode is view or control");
   }
-  if ((call.op === "focus_window" || call.op === "close_window") && typeof call.window !== "string") {
+  const named = call.op === "focus_window" || call.op === "close_window" || call.op === "window_icon";
+  if (named && typeof call.window !== "string") {
     throw new Error("window is missing");
   }
   if (call.op === "set_clipboard" && typeof call.text !== "string") throw new Error("text is missing");

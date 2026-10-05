@@ -719,6 +719,13 @@ pub struct Window {
     pub height: u32,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct WindowIcon {
+    #[serde(default)]
+    pub png_base64: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(tag = "how", rename_all = "snake_case", deny_unknown_fields)]

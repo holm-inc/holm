@@ -2656,6 +2656,64 @@
         }
       }
     },
+    "/v1/boxes/{id}/screens/{screen}/windows/{window}/icon": {
+      "get": {
+        "tags": [
+          "windows"
+        ],
+        "operationId": "window_icon",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "screen",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "window",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WindowIcon"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "The failure, as an ErrorBody",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/boxes/{id}/state/load": {
       "post": {
         "tags": [
@@ -8666,6 +8724,17 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "WindowIcon": {
+        "type": "object",
+        "properties": {
+          "png_base64": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },

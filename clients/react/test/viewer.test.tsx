@@ -56,6 +56,7 @@ function fake(overrides: Partial<Record<Op, (args: Record<string, unknown>) => u
     }),
     focus_window: (args) => ((active = String(args.window)), {}),
     close_window: () => ({}),
+    window_icon: () => ({ icon: null }),
     clipboard: () => ({ text: "from the box" }),
     set_clipboard: () => ({}),
     ...overrides,
@@ -112,6 +113,26 @@ describe("HolmViewer", () => {
     fireEvent.click(chrome);
     await waitFor(() => expect(calls).toContainEqual(["focus_window", { window: "w1" }]));
     expect(chrome.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("shows a window's icon in place of its letter, and asks once per app", async () => {
+    const { controller, calls } = fake({
+      windows: () => ({
+        windows: [
+          { id: "w1", title: "Chrome", class: "Chromium" },
+          { id: "w2", title: "Terminal", class: "XTerm" },
+          { id: "w3", title: "Chrome 2", class: "Chromium" },
+        ],
+        active: "w1",
+      }),
+      window_icon: (args) => ({ icon: args.window === "w2" ? null : "data:image/png;base64,AAAA" }),
+    });
+    render(<HolmViewer controller={controller} pollMs={60_000} />);
+    const chrome = await screen.findByLabelText("Focus Chrome");
+    await waitFor(() => expect(chrome.querySelector("img")?.getAttribute("src")).toBe("data:image/png;base64,AAAA"));
+    expect(screen.getByLabelText("Focus Chrome 2").querySelector("img")).not.toBeNull();
+    expect(screen.getByLabelText("Focus Terminal").textContent).toBe("X");
+    expect(calls.filter(([op]) => op === "window_icon").map(([, args]) => args.window)).toEqual(["w1", "w2"]);
   });
 
   it("keeps the dock's order when the stacking order changes", async () => {

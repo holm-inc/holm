@@ -76,6 +76,15 @@ describe("screen handler", () => {
     expect(await answer.json()).toEqual({ code: "not_found", message: "not_found: no box b", retryable: false });
   });
 
+  it("hands a window's icon back as an address an img can show", async () => {
+    const { holm: client } = holm((url) => json(url.pathname.endsWith("/w1/icon") ? { png_base64: "AAAA" } : {}));
+    const handle = createScreenHandler({ holm: client, authorize: () => true });
+    const ask = async (window: string) =>
+      (await handle(post({ op: "window_icon", box_id: "b", screen: 0, window }))).json();
+    expect(await ask("w1")).toEqual({ icon: "data:image/png;base64,AAAA" });
+    expect(await ask("w2")).toEqual({ icon: null });
+  });
+
   it("maps each op to its route", async () => {
     const { seen, holm: client } = holm(() => json({}));
     const handle = createScreenHandler({ holm: client, authorize: () => true });
@@ -88,6 +97,7 @@ describe("screen handler", () => {
       [{ op: "windows" }, "GET /v1/boxes/b/screens/1/windows/active"],
       [{ op: "focus_window", window: "w1" }, "POST /v1/boxes/b/screens/1/windows/w1/focus"],
       [{ op: "close_window", window: "w1" }, "DELETE /v1/boxes/b/screens/1/windows/w1"],
+      [{ op: "window_icon", window: "w1" }, "GET /v1/boxes/b/screens/1/windows/w1/icon"],
       [{ op: "clipboard" }, "GET /v1/boxes/b/screens/1/clipboard"],
       [{ op: "set_clipboard", text: "x" }, "PUT /v1/boxes/b/screens/1/clipboard"],
     ];

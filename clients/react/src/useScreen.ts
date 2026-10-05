@@ -17,6 +17,7 @@ export interface ScreenHandle {
   error: string | null;
   windows: Window[];
   activeWindow: string | null;
+  icons: Record<string, string>;
   takeover(): Promise<void>;
   giveBack(): Promise<void>;
   startRecording(fps?: number): Promise<void>;
@@ -37,6 +38,8 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
   const [error, setError] = useState<string | null>(null);
   const [windows, setWindows] = useState<Window[]>([]);
   const [activeWindow, setActiveWindow] = useState<string | null>(null);
+  const [icons, setIcons] = useState<Record<string, string>>({});
+  const asked = useRef(new Map<string, Promise<string | null>>());
   const watchWindows = options.watchWindows ?? false;
   const current = useRef(controller);
   current.current = controller;
@@ -67,6 +70,8 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
     setDriving(false);
     setWindows([]);
     setActiveWindow(null);
+    setIcons({});
+    asked.current = new Map();
     void refresh(abort.signal);
     const timer = setInterval(() => void refresh(abort.signal), pollMs);
     return () => {
@@ -74,6 +79,27 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
       clearInterval(timer);
     };
   }, [controller.key, pollMs, refresh]);
+
+  useEffect(() => {
+    let live = true;
+    for (const window of windows) {
+      const app = window.class || window.id;
+      let icon = asked.current.get(app);
+      if (!icon) {
+        icon = current.current.call("window_icon", { window: window.id }).then(
+          (answer) => answer.icon,
+          () => null,
+        );
+        asked.current.set(app, icon);
+      }
+      void icon.then((found) => {
+        if (live && found) setIcons((held) => (held[window.id] === found ? held : { ...held, [window.id]: found }));
+      });
+    }
+    return () => {
+      live = false;
+    };
+  }, [windows]);
 
   const run = useCallback(
     async <O extends Op>(op: O, args: Ops[O]["args"]): Promise<Ops[O]["answer"] | null> => {
@@ -157,6 +183,7 @@ export function useScreen(controller: ScreenController, options: UseScreenOption
     error,
     windows,
     activeWindow,
+    icons,
     takeover,
     giveBack,
     startRecording,

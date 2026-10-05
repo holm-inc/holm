@@ -4,6 +4,7 @@ import { useRef } from "react";
 export interface HolmDockProps {
   windows: Window[];
   active: string | null;
+  icons?: Record<string, string>;
   disabled?: boolean;
   disabledReason?: string;
   onFocus?: (id: string) => void;
@@ -11,7 +12,7 @@ export interface HolmDockProps {
   className?: string;
 }
 
-export function HolmDock({ windows, active, disabled, disabledReason, onFocus, onClose, className }: HolmDockProps) {
+export function HolmDock({ windows, active, icons, disabled, disabledReason, onFocus, onClose, className }: HolmDockProps) {
   const seen = useRef<string[]>([]);
   const present = new Set(windows.map((window) => window.id));
   seen.current = [
@@ -29,19 +30,21 @@ export function HolmDock({ windows, active, disabled, disabledReason, onFocus, o
           {placed.map((window) => {
             const name = window.title || window.class || window.id;
             const current = window.id === active;
+            const icon = icons?.[window.id];
             return (
               <li key={window.id} className="holm-dock__item" data-active={current || undefined}>
                 <button
                   type="button"
                   className="holm-dock__tile"
-                  style={{ background: tint(window.class || name) }}
+                  style={icon ? undefined : { background: tint(window.class || name) }}
+                  data-icon={icon ? true : undefined}
                   disabled={disabled || !onFocus}
                   aria-current={current || undefined}
                   aria-label={`Focus ${name}`}
                   title={disabled && disabledReason ? `${name}: ${disabledReason}` : name}
                   onClick={() => onFocus?.(window.id)}
                 >
-                  {initial(window.class || name)}
+                  {icon ? <img className="holm-dock__icon" src={icon} alt="" /> : initial(window.class || name)}
                 </button>
                 <span className="holm-dock__label">{name}</span>
                 {onClose && !disabled && (

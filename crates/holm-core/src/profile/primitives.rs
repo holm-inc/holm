@@ -296,6 +296,16 @@ pub trait AppRuntime: Send + Sync {
         within: Duration,
     ) -> Result<Window>;
 
+    async fn icon(
+        &self,
+        _host: &MachineHost,
+        _profile: &dyn Profile,
+        _screen: ScreenId,
+        _window: &str,
+    ) -> Result<Option<String>> {
+        Ok(None)
+    }
+
     fn supported(&self) -> Result<()> {
         Ok(())
     }
@@ -474,6 +484,60 @@ echo waited"#
         ]
     }
 
+    const ICON: &'static str = r#"
+import base64,glob,os,re,struct,subprocess,sys,zlib
+w=sys.argv[1]
+def prop(*words):
+    try:
+        return subprocess.run(['xprop','-id',w,*words],capture_output=True,text=True).stdout
+    except OSError:
+        return ''
+def best(sized):
+    big=[one for one in sized if one[0]>=64]
+    return (min(big) if big else max(sized))[1] if sized else None
+def themed(icon):
+    if icon.startswith('/'):
+        return icon if os.path.isfile(icon) else None
+    sized=[]
+    for path in glob.glob('/usr/share/icons/hicolor/*x*/apps/'+glob.escape(icon)+'.png'):
+        size=path.split('/')[5].split('x')[0]
+        if size.isdigit():
+            sized.append((int(size),path))
+    return best(sized) or next(iter(glob.glob('/usr/share/pixmaps/'+glob.escape(icon)+'.png')),None)
+def launcher(names):
+    for path in sorted(glob.glob('/usr/share/applications/holm-*.desktop')):
+        text=open(path,errors='replace').read()
+        run=re.search(r'^Exec=holm-launch (?:--new )?(\S+)',text,re.M)
+        icon=re.search(r'^Icon=(.+)$',text,re.M)
+        if run and icon and run.group(1).lower() in names:
+            found=themed(icon.group(1).strip())
+            if found:
+                return open(found,'rb').read()
+def own():
+    raw=prop('-notype','32c','_NET_WM_ICON')
+    n=[int(x) for x in re.findall(r'\d+',raw.split('=',1)[1])] if '=' in raw else []
+    sized=[];i=0
+    while i+2<=len(n):
+        width,height=n[i],n[i+1];end=i+2+width*height
+        if not width or not height or end>len(n):
+            break
+        sized.append((width,i));i=end
+    at=best(sized)
+    if at is None:
+        return None
+    width,height=n[at],n[at+1];px=n[at+2:at+2+width*height]
+    rows=b''.join(b'\0'+struct.pack('>%dI'%width,*(((p<<8)&0xffffffff)|(p>>24) for p in px[y*width:(y+1)*width])) for y in range(height))
+    def chunk(kind,data):
+        return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data))
+    return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',width,height,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(rows))+chunk(b'IEND',b'')
+names={one.lower() for one in re.findall(r'"([^"]*)"',prop('WM_CLASS'))}
+png=launcher(names)
+if not png or png[:4]!=b'\x89PNG':
+    png=own()
+if png:
+    sys.stdout.write(base64.b64encode(png).decode())
+"#;
+
     fn focused() -> Vec<String> {
         vec![
             "sh".to_string(),
@@ -630,6 +694,27 @@ impl AppRuntime for X11AppRuntime {
             .await?;
 
         Ok(window_line(result.stdout_utf8().trim()))
+    }
+
+    async fn icon(
+        &self,
+        host: &MachineHost,
+        profile: &dyn Profile,
+        screen: ScreenId,
+        window: &str,
+    ) -> Result<Option<String>> {
+        let argv = vec![
+            "python3".to_string(),
+            "-c".to_string(),
+            Self::ICON.to_string(),
+            window.to_string(),
+        ];
+        let result = host
+            .run_within(&argv, &profile.screen_env(screen), host.timeout())
+            .await?;
+
+        let png = result.stdout_utf8().trim().to_string();
+        Ok((!png.is_empty()).then_some(png))
     }
 
     async fn wait_for_window(

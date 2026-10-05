@@ -151,6 +151,7 @@ export function HolmViewer({
         <HolmDock
           windows={screen.windows}
           active={screen.activeWindow}
+          icons={screen.icons}
           disabled={screen.busy || screen.driving}
           disabledReason={screen.driving ? "you are driving; use the screen" : undefined}
           onFocus={readOnly ? undefined : (id) => void screen.focusWindow(id)}

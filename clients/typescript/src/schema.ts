@@ -630,6 +630,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/boxes/{id}/screens/{screen}/windows/{window}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["window_icon"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/boxes/{id}/state/load": {
         parameters: {
             query?: never;
@@ -2117,6 +2133,9 @@ export interface components {
             /** Format: int32 */
             width?: number;
         };
+        WindowIcon: {
+            png_base64?: string | null;
+        };
         WindowMatch: {
             class: string;
         } | {
@@ -2264,6 +2283,7 @@ export type ViewersView = components['schemas']['ViewersView'];
 export type Want = components['schemas']['Want'];
 export type Where = components['schemas']['Where'];
 export type Window = components['schemas']['Window'];
+export type WindowIcon = components['schemas']['WindowIcon'];
 export type WindowMatch = components['schemas']['WindowMatch'];
 export type WindowOp = components['schemas']['WindowOp'];
 export type WriteFile = components['schemas']['WriteFile'];
@@ -3903,6 +3923,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description The failure, as an ErrorBody */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    window_icon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                screen: number;
+                window: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WindowIcon"];
+                };
             };
             /** @description The failure, as an ErrorBody */
             default: {

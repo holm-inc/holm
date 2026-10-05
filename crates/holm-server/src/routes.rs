@@ -119,6 +119,7 @@ fn documented() -> OpenApiRouter<Arc<AppState>> {
         .routes(routes!(active_window))
         .routes(routes!(await_window))
         .routes(routes!(focus_window))
+        .routes(routes!(window_icon))
         .routes(routes!(arrange_window))
         .routes(routes!(close_window))
         .routes(routes!(catalog))
@@ -3815,6 +3816,29 @@ async fn focus_window(
 
     screen.focus(&window).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/{window}/icon",
+    tag = "windows",
+    operation_id = "window_icon",
+    params(("id" = String, Path), ("screen" = u32, Path), ("window" = String, Path)),
+    responses((status = 200, description = "Done", body = holm_types::WindowIcon), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
+async fn window_icon(
+    State(state): State<Arc<AppState>>,
+    ApiPath((id, screen, window)): ApiPath<(String, u32, String)>,
+) -> ApiResult<Json<holm_types::WindowIcon>> {
+    let entry = state.entry(&id).await?;
+    let target = entry.desktop(screen).await?;
+    let screen = target
+        .as_screen()
+        .ok_or_else(|| ApiError::bad_request("this screen holds no windows"))?;
+
+    Ok(Json(holm_types::WindowIcon {
+        png_base64: screen.window_icon(&window).await?,
+    }))
 }
 
 #[utoipa::path(

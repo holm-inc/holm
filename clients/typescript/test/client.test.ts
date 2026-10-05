@@ -184,6 +184,7 @@ describe("coverage", () => {
     active_window: (h) => h.box("b").screen(0).windows.active(),
     await_window: (h) => h.box("b").screen(0).windows.waitFor({} as never),
     focus_window: (h) => h.box("b").screen(0).windows.focus("w"),
+    window_icon: (h) => h.box("b").screen(0).windows.icon("w"),
     arrange_window: (h) => h.box("b").screen(0).windows.arrange("w", {} as never),
     close_window: (h) => h.box("b").screen(0).windows.close("w"),
     list_runtimes: (h) => h.runtimes.list(),
