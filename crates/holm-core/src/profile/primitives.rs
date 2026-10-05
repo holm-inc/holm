@@ -1011,7 +1011,11 @@ printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
 
 fn x11_windows() -> String {
     format!(
-        "for w in $(xdotool search --onlyvisible --name . 2>/dev/null); do\n{}\ndone",
+        r#"shown=$(xdotool search --onlyvisible --name . 2>/dev/null)
+managed=$(for h in $(wmctrl -l 2>/dev/null | cut -d' ' -f1); do echo $((h)); done)
+for w in $(printf '%s\n' $shown $managed | awk '!seen[$0]++'); do
+{}
+done"#,
         x11_window("continue")
     )
 }
@@ -1756,6 +1760,17 @@ mod tests {
         assert!(
             window_line("\t1\t2\t3\t4\tx\ty").is_none(),
             "an empty id is no window"
+        );
+    }
+
+    #[test]
+    fn test_a_minimised_x11_window_is_still_listed() {
+        let script = x11_windows();
+
+        assert!(script.contains("--onlyvisible"), "{script}");
+        assert!(
+            script.contains("wmctrl -l"),
+            "a minimised window is unmapped, so only the window manager lists it: {script}"
         );
     }
 
