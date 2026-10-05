@@ -164,8 +164,6 @@ On Vercel, page tools and `holm cdp` reach Chromium at the address that Vercel p
 
 On E2B, page tools and `holm cdp` reach Chromium at the address that E2B publishes for port 9223. A bridge in the box answers only requests that carry a secret made for that box, so the address alone does not open the browser. Build the template from the current image: an older template does not have the bridge, and Chromium refuses the requests.
 
-Each CDP call goes to the vendor and back, so a page tool takes longer than on a host runtime.
-
 When a server takes a box back after a restart, it restarts the bridge in the box with a new secret, so the secret of an earlier server no longer opens the browser. Page tools then work again on the box. Screenshots, input, clipboard, files, commands, and human control continue to work.
 
 ## Compare the modes
