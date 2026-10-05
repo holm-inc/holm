@@ -62,11 +62,15 @@ ARG EXTRA_APPS=""
 RUN if [ -n "$EXTRA_APPS" ]; then \
       printf '%s\n' "$EXTRA_APPS" | while IFS="$(printf '\t')" read -r name class command; do \
         [ -n "$name" ] || continue; \
+        program=$(printf '%s' "$command" | cut -d" " -f1 | xargs -r basename); \
+        entry="/usr/share/applications/$program.desktop"; \
+        [ -f "$entry" ] || entry=$(grep -l -E "^Exec=$program( |\$)" /usr/share/applications/*.desktop 2>/dev/null | grep -v /holm- | head -n1); \
+        icon=$(sed -n 's/^Icon=//p' "$entry" 2>/dev/null | head -n1); \
         { echo '[Desktop Entry]'; \
           echo 'Type=Application'; \
           echo "Name=$name"; \
           echo "Exec=holm-launch $class $command"; \
-          echo "Icon=$(printf '%s' "$command" | cut -d" " -f1 | xargs -r basename)"; \
+          echo "Icon=${icon:-$program}"; \
           echo 'Terminal=false'; \
         } > "/usr/share/applications/holm-app-$name.desktop"; \
       done; \

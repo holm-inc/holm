@@ -131,6 +131,7 @@ A frame in a response:
 | `GET` | `/v1/boxes/{id}/screens/{screen}/windows/active` | Get the window that receives keyboard input. |
 | `POST` | `/v1/boxes/{id}/screens/{screen}/windows/wait` | Wait for a window. Body: `{"class": "gimp", "within_ms": 30000}`. |
 | `POST` | `/v1/boxes/{id}/screens/{screen}/windows/{window}/focus` | Bring a window to the front. |
+| `GET` | `/v1/boxes/{id}/screens/{screen}/windows/{window}/icon` | Get the icon of a window as `{"png_base64": "..."}`. The field is absent when the window has no icon. |
 | `POST` | `/v1/boxes/{id}/screens/{screen}/windows/{window}/arrange` | Move or resize a window. See below. |
 | `DELETE` | `/v1/boxes/{id}/screens/{screen}/windows/{window}` | Close a window. |
 

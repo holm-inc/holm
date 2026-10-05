@@ -1874,6 +1874,13 @@ impl Screen {
             .await
     }
 
+    pub async fn window_icon(&self, window: &str) -> Result<Option<String>> {
+        self.runtimes
+            .app
+            .icon(self.host.as_ref(), self.profile.as_ref(), self.id, window)
+            .await
+    }
+
     pub async fn close_window(&self, window: &str) -> Result<()> {
         self.runtimes
             .app

@@ -139,6 +139,28 @@ reopen_view() {
     || { echo "viewer never came up on ${view_port}" >&2; return 1; }
 }
 
+app_menu() {
+  local entry name run apps="" fresh=""
+  for entry in /usr/share/applications/holm-app-*.desktop; do
+    [ -e "$entry" ] || continue
+    name=$(sed -n 's/^Name=//p' "$entry" | head -n1 | tr -d '()')
+    run=$(sed -n 's/^Exec=holm-launch //p' "$entry" | head -n1 | tr -d '{}')
+    [ -n "$name" ] && [ -n "$run" ] || continue
+    apps="${apps}  [exec] (${name}) {holm-launch ${run}}
+"
+    fresh="${fresh}    [exec] (${name}) {holm-launch --new ${run}}
+"
+  done
+
+  while IFS= read -r line; do
+    case "$line" in
+      %APPS%) printf '%s' "$apps" ;;
+      %NEWAPPS%) printf '%s' "$fresh" ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done < /etc/holm/fluxbox/menu
+}
+
 start() {
   if xdpyinfo -display "$display" >/dev/null 2>&1; then
     reopen_view || exit 1
@@ -154,7 +176,7 @@ start() {
 
   # Copied: fluxbox rewrites its apps file, and /etc is read-only to the box user.
   cp /etc/holm/fluxbox/init "$wm_home/.fluxbox/init"
-  cp /etc/holm/fluxbox/menu "$wm_home/.fluxbox/menu"
+  app_menu > "$wm_home/.fluxbox/menu"
   cp /etc/holm/fluxbox/apps "$wm_home/.fluxbox/apps"
   cp /etc/holm/fluxbox/style "$wm_home/.fluxbox/style"
   HOME="$wm_home" DISPLAY="$display" fluxbox -rc "$wm_home/.fluxbox/init" \

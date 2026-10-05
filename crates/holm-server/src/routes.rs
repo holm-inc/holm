@@ -12,7 +12,7 @@ use axum::body::Body;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{any, delete, get, post};
+use axum::routing::{any, get, post};
 use axum::{Extension, Json, Router};
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
@@ -56,6 +56,8 @@ const SETTLE: u64 = 400;
 const STILL: u64 = 10_000;
 const MAX_EXEC: Duration = Duration::from_secs(600);
 
+use utoipa_axum::{router::OpenApiRouter, routes};
+
 pub fn router(state: Arc<AppState>) -> Router {
     // A browser opens a WebSocket with no header to carry a bearer in, so the viewer
     // socket sits outside the gate and admits a ticket instead.
@@ -69,107 +71,14 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/v1/cdp/{token}/devtools/{*rest}", get(crate::cdp::socket))
         .with_state(Arc::clone(&state));
 
+    let (documented, _) = documented().split_for_parts();
     let gated = Router::new()
-        .route(HEALTH, get(health))
         .route(crate::console::PUSH_PATH, post(take_revoked))
         .route("/v1/events", get(list_events))
         .route("/v1/jobs/reap", get(job_reap).post(job_reap))
         .route("/v1/jobs/prune", get(job_prune).post(job_prune))
         .route(crate::schedule::RUN_PATH, get(job_run).post(job_run))
-        .route("/v1/boxes", get(list_boxes).post(create_box))
-        .route("/v1/boxes/{id}", get(get_box).delete(delete_box))
-        .route("/v1/boxes/{id}/fork", post(fork))
-        .route("/v1/boxes/{id}/cdp", post(crate::cdp::token))
-        .route("/v1/boxes/{id}/pause", post(pause_box))
-        .route("/v1/boxes/{id}/resume", post(resume_box))
-        .route("/v1/boxes/{id}/stop", post(stop_box))
-        .route("/v1/boxes/{id}/exec", post(exec))
-        .route("/v1/boxes/{id}/apps", post(install_apps))
-        .route("/v1/boxes/{id}/trace", get(read_trace))
-        .route("/v1/boxes/{id}/trace/frames/{hash}", get(trace_frame))
-        .route("/v1/boxes/{id}/files", get(read_file).put(write_file))
-        .route("/v1/boxes/{id}/files/list", get(list_dir))
-        .route("/v1/boxes/{id}/files/grep", post(grep))
-        .route("/v1/boxes/{id}/files/glob", get(glob))
-        .route("/v1/boxes/{id}/screens/{screen}/actions", post(actions))
-        .route("/v1/boxes/{id}/screens/{screen}/frame", get(frame))
-        .route("/v1/boxes/{id}/screens/{screen}/cursor", get(cursor))
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/desktop/node",
-            post(on_node),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/clipboard",
-            get(get_clipboard).put(set_clipboard),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/takeover",
-            post(start_takeover).delete(end_takeover),
-        )
-        .route("/v1/boxes/{id}/screens/{screen}/viewers", get(viewers))
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/viewer/ticket",
-            post(crate::viewer::ticket),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/recording",
-            get(recording).post(start_recording).delete(stop_recording),
-        )
-        .route("/v1/boxes/{id}/screens/{screen}/windows", get(list_windows))
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/windows/active",
-            get(active_window),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/windows/wait",
-            post(await_window),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/windows/{window}/focus",
-            post(focus_window),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/windows/{window}/arrange",
-            post(arrange_window),
-        )
-        .route(
-            "/v1/boxes/{id}/screens/{screen}/windows/{window}",
-            axum::routing::delete(close_window),
-        )
-        .route("/v1/catalog", get(catalog))
-        .route("/v1/runtimes", get(list_runtimes).post(add_runtime))
-        .route("/v1/runtimes/{name}/image", post(prepare_image))
-        .route("/v1/runtimes/{name}/images", get(list_runtime_images))
-        .route(
-            "/v1/runtimes/{name}/images/{digest}",
-            get(image_status).delete(forget_image),
-        )
-        .route("/v1/images", get(list_images))
-        .route(
-            "/v1/runtimes/{name}",
-            get(get_runtime)
-                .patch(change_runtime)
-                .delete(forget_runtime),
-        )
-        .route("/v1/boxes/{id}/pages", get(list_tabs))
-        .route("/v1/boxes/{id}/pages/{tab}", delete(close_tab))
-        .route("/v1/boxes/{id}/pages/{tab}/focus", post(focus_tab))
-        .route("/v1/boxes/{id}/page", get(read_page))
-        .route("/v1/boxes/{id}/page/find", get(find_elements))
-        .route("/v1/boxes/{id}/page/snapshot", get(snapshot_page))
-        .route("/v1/boxes/{id}/page/element", post(on_element))
-        .route("/v1/boxes/{id}/page/evaluate", post(evaluate))
-        .route("/v1/boxes/{id}/page/screenshot", post(page_screenshot))
-        .route("/v1/boxes/{id}/page/pdf", post(page_pdf))
-        .route("/v1/boxes/{id}/page/console", post(page_console))
-        .route("/v1/boxes/{id}/state/save", post(save_state))
-        .route("/v1/boxes/{id}/state/load", post(load_state))
-        .route("/v1/states", get(list_states))
-        .route("/v1/states/{name}", delete(forget_state))
-        .route(
-            "/v1/boxes/{id}/cookies",
-            get(list_cookies).post(set_cookies).delete(clear_cookies),
-        )
+        .merge(documented)
         .layer(axum::middleware::from_fn_with_state(
             Arc::clone(&state),
             crate::auth::gate,
@@ -179,6 +88,94 @@ pub fn router(state: Arc<AppState>) -> Router {
     open.merge(gated)
 }
 
+fn documented() -> OpenApiRouter<Arc<AppState>> {
+    OpenApiRouter::new()
+        .routes(routes!(health))
+        .routes(routes!(list_boxes, create_box))
+        .routes(routes!(get_box, delete_box))
+        .routes(routes!(fork))
+        .routes(routes!(crate::cdp::token))
+        .routes(routes!(pause_box))
+        .routes(routes!(resume_box))
+        .routes(routes!(stop_box))
+        .routes(routes!(exec))
+        .routes(routes!(install_apps))
+        .routes(routes!(read_trace))
+        .routes(routes!(trace_frame))
+        .routes(routes!(read_file, write_file))
+        .routes(routes!(list_dir))
+        .routes(routes!(grep))
+        .routes(routes!(glob))
+        .routes(routes!(actions))
+        .routes(routes!(frame))
+        .routes(routes!(cursor))
+        .routes(routes!(on_node))
+        .routes(routes!(get_clipboard, set_clipboard))
+        .routes(routes!(start_takeover, end_takeover))
+        .routes(routes!(viewers))
+        .routes(routes!(crate::viewer::ticket))
+        .routes(routes!(recording, start_recording, stop_recording))
+        .routes(routes!(list_windows))
+        .routes(routes!(active_window))
+        .routes(routes!(await_window))
+        .routes(routes!(focus_window))
+        .routes(routes!(window_icon))
+        .routes(routes!(arrange_window))
+        .routes(routes!(close_window))
+        .routes(routes!(catalog))
+        .routes(routes!(list_runtimes, add_runtime))
+        .routes(routes!(prepare_image))
+        .routes(routes!(list_runtime_images))
+        .routes(routes!(image_status, forget_image))
+        .routes(routes!(list_images))
+        .routes(routes!(get_runtime, change_runtime, forget_runtime))
+        .routes(routes!(list_tabs))
+        .routes(routes!(close_tab))
+        .routes(routes!(focus_tab))
+        .routes(routes!(read_page))
+        .routes(routes!(find_elements))
+        .routes(routes!(snapshot_page))
+        .routes(routes!(on_element))
+        .routes(routes!(evaluate))
+        .routes(routes!(page_screenshot))
+        .routes(routes!(page_pdf))
+        .routes(routes!(page_console))
+        .routes(routes!(save_state))
+        .routes(routes!(load_state))
+        .routes(routes!(list_states))
+        .routes(routes!(forget_state))
+        .routes(routes!(list_cookies, set_cookies, clear_cookies))
+}
+
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    let (_, mut spec) = documented().split_for_parts();
+    spec.info = utoipa::openapi::InfoBuilder::new()
+        .title("holm")
+        .version(env!("CARGO_PKG_VERSION"))
+        .license(Some(
+            utoipa::openapi::LicenseBuilder::new().name("MIT").build(),
+        ))
+        .build();
+    let bearer = utoipa::openapi::security::SecurityScheme::Http(
+        utoipa::openapi::security::Http::new(utoipa::openapi::security::HttpAuthScheme::Bearer),
+    );
+    spec.components
+        .get_or_insert_with(Default::default)
+        .add_security_scheme("bearer", bearer);
+    spec.security = Some(vec![utoipa::openapi::security::SecurityRequirement::new(
+        "bearer",
+        Vec::<String>::new(),
+    )]);
+    spec
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/health",
+    tag = "health",
+    operation_id = "health",
+    responses((status = 200, description = "Done", body = Health), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn health() -> Json<Health> {
     Json(Health {
         ok: true,
@@ -186,6 +183,15 @@ async fn health() -> Json<Health> {
     })
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes",
+    tag = "boxes",
+    operation_id = "create_box",
+    request_body = CreateBox,
+    params(("idempotency-key" = Option<String>, Header, description = "Replays the first answer for a repeated key")),
+    responses((status = 201, description = "Created", body = BoxView), (status = 202, description = "Accepted; still in progress", body = BoxView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn create_box(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -226,6 +232,13 @@ async fn create_box(
         .await
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes",
+    tag = "boxes",
+    operation_id = "list_boxes",
+    responses((status = 200, description = "Done", body = BoxList), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_boxes(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -286,6 +299,14 @@ async fn state_of(entry: &Entry) -> BoxState {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}",
+    tag = "boxes",
+    operation_id = "get_box",
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = BoxView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn get_box(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -314,6 +335,14 @@ async fn get_box(
     Ok(Json(viewed(&state, &entry, now)))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/boxes/{id}",
+    tag = "boxes",
+    operation_id = "delete_box",
+    params(("id" = String, Path), ("x-holm-confirm-delete" = Option<String>, Header)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn delete_box(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -365,6 +394,15 @@ async fn delete_box(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/actions",
+    tag = "screens",
+    operation_id = "actions",
+    request_body = ActionBatch,
+    params(("id" = String, Path), ("screen" = u32, Path), ("idempotency-key" = Option<String>, Header, description = "Replays the first answer for a repeated key")),
+    responses((status = 200, description = "Done", body = BatchResult), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn actions(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
@@ -1164,7 +1202,8 @@ async fn run(doing: &mut Doing<'_>, action: &Action) -> ApiResult<Did> {
     Ok(Did::default())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct FrameQuery {
     #[serde(default)]
     have: Option<String>,
@@ -1218,6 +1257,14 @@ impl FrameQuery {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/frame",
+    tag = "screens",
+    operation_id = "frame",
+    params(("id" = String, Path), ("screen" = u32, Path), FrameQuery),
+    responses((status = 200, description = "Done", body = Frame), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn frame(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1313,6 +1360,15 @@ async fn recorded(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/desktop/node",
+    tag = "screens",
+    operation_id = "on_node",
+    request_body = OnNode,
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = NodeResult), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn on_node(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1465,6 +1521,14 @@ async fn on_tree(desktop: &dyn holm::Desktop, what: OnNode) -> ApiResult<NodeRes
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/cursor",
+    tag = "screens",
+    operation_id = "cursor",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = Point), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn cursor(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1475,12 +1539,21 @@ async fn cursor(
     Ok(Json(target.as_desktop().find_cursor().await?))
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct SelectionQuery {
     #[serde(default)]
     selection: Selection,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/clipboard",
+    tag = "screens",
+    operation_id = "get_clipboard",
+    params(("id" = String, Path), ("screen" = u32, Path), SelectionQuery),
+    responses((status = 200, description = "Done", body = ClipboardView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn get_clipboard(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1508,6 +1581,15 @@ async fn get_clipboard(
     Ok(Json(ClipboardView { text }))
 }
 
+#[utoipa::path(
+    put,
+    path = "/v1/boxes/{id}/screens/{screen}/clipboard",
+    tag = "screens",
+    operation_id = "set_clipboard",
+    request_body = SetClipboard,
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn set_clipboard(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1535,6 +1617,15 @@ async fn set_clipboard(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/takeover",
+    tag = "viewer",
+    operation_id = "start_takeover",
+    request_body = TakeoverRequest,
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = TakeoverView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn start_takeover(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1590,6 +1681,14 @@ async fn start_takeover(
 }
 
 /// Through `reclaim`: the `Takeover` handle belonged to a request that has returned.
+#[utoipa::path(
+    delete,
+    path = "/v1/boxes/{id}/screens/{screen}/takeover",
+    tag = "viewer",
+    operation_id = "end_takeover",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn end_takeover(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1619,6 +1718,14 @@ async fn end_takeover(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/viewers",
+    tag = "viewer",
+    operation_id = "viewers",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = ViewersView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn viewers(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1642,6 +1749,14 @@ async fn viewers(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/recording",
+    tag = "screens",
+    operation_id = "recording",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = RecordingView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn recording(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1660,6 +1775,15 @@ async fn recording(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/recording",
+    tag = "screens",
+    operation_id = "start_recording",
+    request_body = StartRecording,
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = RecordingView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn start_recording(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1685,6 +1809,14 @@ async fn start_recording(
     }))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/boxes/{id}/screens/{screen}/recording",
+    tag = "screens",
+    operation_id = "stop_recording",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = RecordingView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn stop_recording(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -1703,6 +1835,14 @@ async fn stop_recording(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/pause",
+    tag = "boxes",
+    operation_id = "pause_box",
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = BoxView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn pause_box(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1718,6 +1858,14 @@ async fn pause_box(
     Ok(Json(viewed(&state, &entry, BoxState::Paused)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/resume",
+    tag = "boxes",
+    operation_id = "resume_box",
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = BoxView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn resume_box(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1746,6 +1894,14 @@ async fn resume_box(
     Ok(Json(viewed(&state, &entry, BoxState::Ready)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/stop",
+    tag = "boxes",
+    operation_id = "stop_box",
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = BoxView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn stop_box(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1761,6 +1917,15 @@ async fn stop_box(
     Ok(Json(viewed(&state, &entry, BoxState::Stopped)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/exec",
+    tag = "boxes",
+    operation_id = "exec",
+    request_body = ExecRequest,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = ExecResponse), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn exec(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1801,11 +1966,20 @@ async fn exec(
     }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct PathQuery {
     path: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/files/list",
+    tag = "files",
+    operation_id = "list_dir",
+    params(("id" = String, Path), PathQuery),
+    responses((status = 200, description = "Done", body = Listing), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_dir(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1820,6 +1994,15 @@ async fn list_dir(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/files/grep",
+    tag = "files",
+    operation_id = "grep",
+    request_body = Search,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = Found), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn grep(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1853,6 +2036,14 @@ async fn found(computer: &holm::Computer, search: &Search) -> ApiResult<Found> {
     Ok(Found { matches, cut })
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/files/glob",
+    tag = "files",
+    operation_id = "glob",
+    params(("id" = String, Path), GlobQuery),
+    responses((status = 200, description = "Done", body = Globbed), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn glob(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1885,7 +2076,8 @@ async fn globbed(
     Ok(Globbed { paths, cut })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct GlobQuery {
     pattern: String,
     #[serde(default)]
@@ -1894,6 +2086,14 @@ struct GlobQuery {
     limit: Option<usize>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/files",
+    tag = "files",
+    operation_id = "read_file",
+    params(("id" = String, Path), PathQuery),
+    responses((status = 200, description = "Done", body = ReadFile), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn read_file(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1919,6 +2119,15 @@ async fn read_file(
     }))
 }
 
+#[utoipa::path(
+    put,
+    path = "/v1/boxes/{id}/files",
+    tag = "files",
+    operation_id = "write_file",
+    request_body = WriteFile,
+    params(("id" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn write_file(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -1947,6 +2156,15 @@ async fn write_file(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/fork",
+    tag = "boxes",
+    operation_id = "fork",
+    request_body = ForkRequest,
+    params(("id" = String, Path), ("idempotency-key" = Option<String>, Header, description = "Replays the first answer for a repeated key")),
+    responses((status = 201, description = "Created", body = ForkResult), (status = 202, description = "Accepted; still in progress", body = ForkResult), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn fork(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -2272,7 +2490,8 @@ enum Step {
     Exec { argv: Vec<String> },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct TraceQuery {
     #[serde(default)]
     after: Option<u64>,
@@ -2280,6 +2499,14 @@ struct TraceQuery {
     limit: Option<usize>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/trace",
+    tag = "trace",
+    operation_id = "read_trace",
+    params(("id" = String, Path), TraceQuery),
+    responses((status = 200, description = "Done", body = TraceView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn read_trace(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2302,6 +2529,14 @@ async fn read_trace(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/trace/frames/{hash}",
+    tag = "trace",
+    operation_id = "trace_frame",
+    params(("id" = String, Path), ("hash" = String, Path)),
+    responses((status = 200, description = "Done", content_type = "image/png", body = Vec<u8>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn trace_frame(
     State(state): State<Arc<AppState>>,
     ApiPath((id, hash)): ApiPath<(String, String)>,
@@ -2320,7 +2555,8 @@ async fn trace_frame(
         .into_response())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct PageQuery {
     #[serde(default)]
     limit: Option<usize>,
@@ -2332,6 +2568,14 @@ struct PageQuery {
     tab: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/page",
+    tag = "pages",
+    operation_id = "read_page",
+    params(("id" = String, Path), PageQuery),
+    responses((status = 200, description = "Done", body = PageText), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn read_page(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2384,7 +2628,8 @@ async fn read_out(page: &mut holm::Page, what: &PageRead) -> ApiResult<PageText>
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct FindQuery {
     #[serde(default)]
     q: Option<String>,
@@ -2400,6 +2645,14 @@ struct FindQuery {
     role: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/page/find",
+    tag = "pages",
+    operation_id = "find_elements",
+    params(("id" = String, Path), FindQuery),
+    responses((status = 200, description = "Done", body = Vec<Element>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn find_elements(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2434,7 +2687,8 @@ async fn find_elements(
     Ok(Json(found.into_iter().map(element_out).collect()))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct SnapshotQuery {
     #[serde(default)]
     scope: Option<String>,
@@ -2448,6 +2702,14 @@ struct SnapshotQuery {
     quiet_ms: Option<u64>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/page/snapshot",
+    tag = "pages",
+    operation_id = "snapshot_page",
+    params(("id" = String, Path), SnapshotQuery),
+    responses((status = 200, description = "Done", body = Snapshot), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn snapshot_page(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2470,6 +2732,15 @@ async fn snapshot_page(
     Ok(Json(snapshot_out(taken)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/page/element",
+    tag = "pages",
+    operation_id = "on_element",
+    request_body = OnElement,
+    params(("id" = String, Path), SettleQuery),
+    responses((status = 200, description = "Done", body = ElementResult), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn on_element(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2511,7 +2782,8 @@ async fn missing(state: &AppState, id: &str, paths: &[String]) -> ApiResult<()> 
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct SettleQuery {
     #[serde(default)]
     settle_ms: Option<u64>,
@@ -2753,6 +3025,15 @@ async fn applied(page: &mut holm::Page, what: OnElement) -> ApiResult<ElementRes
     })
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/page/evaluate",
+    tag = "pages",
+    operation_id = "evaluate",
+    request_body = Evaluate,
+    params(("id" = String, Path), TabQuery),
+    responses((status = 200, description = "Done", body = Evaluated), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn evaluate(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2776,6 +3057,15 @@ async fn evaluate(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/page/screenshot",
+    tag = "pages",
+    operation_id = "page_screenshot",
+    request_body = PageShot,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = Captured), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn page_screenshot(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2834,6 +3124,15 @@ async fn captured_page(state: &AppState, id: &str, body: &PageShot) -> ApiResult
     })
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/state/save",
+    tag = "states",
+    operation_id = "save_state",
+    request_body = SaveState,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = StateView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn save_state(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -2877,6 +3176,15 @@ async fn save_state(
     Ok(Json(view))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/state/load",
+    tag = "states",
+    operation_id = "load_state",
+    request_body = LoadState,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = StateView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn load_state(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -2926,6 +3234,13 @@ fn state_view(session: &holm::Session) -> StateView {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/states",
+    tag = "states",
+    operation_id = "list_states",
+    responses((status = 200, description = "Done", body = Vec<String>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_states(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -2962,6 +3277,14 @@ fn unshelved(caller: &Caller, held: &str) -> Option<String> {
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/states/{name}",
+    tag = "states",
+    operation_id = "forget_state",
+    params(("name" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn forget_state(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -2973,12 +3296,21 @@ async fn forget_state(
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct CookieQuery {
     #[serde(default)]
     url: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/cookies",
+    tag = "cookies",
+    operation_id = "list_cookies",
+    params(("id" = String, Path), CookieQuery),
+    responses((status = 200, description = "Done", body = Vec<Cookie>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_cookies(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -2991,6 +3323,15 @@ async fn list_cookies(
     Ok(Json(cookies.into_iter().map(cookie_out).collect()))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/cookies",
+    tag = "cookies",
+    operation_id = "set_cookies",
+    request_body = SetCookies,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = Vec<Cookie>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn set_cookies(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -3009,6 +3350,14 @@ async fn set_cookies(
     Ok(Json(cookies.into_iter().map(cookie_out).collect()))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/boxes/{id}/cookies",
+    tag = "cookies",
+    operation_id = "clear_cookies",
+    params(("id" = String, Path), CookieQuery),
+    responses((status = 200, description = "Done", body = Cleared), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn clear_cookies(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -3076,6 +3425,15 @@ fn cookie_out(cookie: holm::Cookie) -> Cookie {
 
 const CONSOLE_LINES: usize = 200;
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/page/console",
+    tag = "pages",
+    operation_id = "page_console",
+    request_body = ConsoleRead,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = ConsoleView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn page_console(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -3106,6 +3464,15 @@ async fn page_console(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/page/pdf",
+    tag = "pages",
+    operation_id = "page_pdf",
+    request_body = PagePdf,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = Printed), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn page_pdf(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -3153,12 +3520,21 @@ async fn page_pdf(
     }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct TabQuery {
     #[serde(default)]
     tab: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/pages",
+    tag = "pages",
+    operation_id = "list_tabs",
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = Vec<Tab>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_tabs(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -3190,6 +3566,14 @@ async fn listed_tabs(state: &AppState, id: &str) -> ApiResult<Vec<Tab>> {
         .collect())
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/pages/{tab}/focus",
+    tag = "pages",
+    operation_id = "focus_tab",
+    params(("id" = String, Path), ("tab" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn focus_tab(
     State(state): State<Arc<AppState>>,
     ApiPath((id, tab)): ApiPath<(String, String)>,
@@ -3199,6 +3583,14 @@ async fn focus_tab(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/boxes/{id}/pages/{tab}",
+    tag = "pages",
+    operation_id = "close_tab",
+    params(("id" = String, Path), ("tab" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn close_tab(
     State(state): State<Arc<AppState>>,
     ApiPath((id, tab)): ApiPath<(String, String)>,
@@ -3382,6 +3774,14 @@ fn element_out(element: holm::Element) -> Element {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/windows",
+    tag = "windows",
+    operation_id = "list_windows",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = Vec<Window>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_windows(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -3396,6 +3796,14 @@ async fn list_windows(
 }
 
 /// Untraced: on a fork whose windows opened in another order it would raise the wrong one.
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/{window}/focus",
+    tag = "windows",
+    operation_id = "focus_window",
+    params(("id" = String, Path), ("screen" = u32, Path), ("window" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn focus_window(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen, window)): ApiPath<(String, u32, String)>,
@@ -3410,6 +3818,37 @@ async fn focus_window(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/{window}/icon",
+    tag = "windows",
+    operation_id = "window_icon",
+    params(("id" = String, Path), ("screen" = u32, Path), ("window" = String, Path)),
+    responses((status = 200, description = "Done", body = holm_types::WindowIcon), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
+async fn window_icon(
+    State(state): State<Arc<AppState>>,
+    ApiPath((id, screen, window)): ApiPath<(String, u32, String)>,
+) -> ApiResult<Json<holm_types::WindowIcon>> {
+    let entry = state.entry(&id).await?;
+    let target = entry.desktop(screen).await?;
+    let screen = target
+        .as_screen()
+        .ok_or_else(|| ApiError::bad_request("this screen holds no windows"))?;
+
+    Ok(Json(holm_types::WindowIcon {
+        png_base64: screen.window_icon(&window).await?,
+    }))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/{window}",
+    tag = "windows",
+    operation_id = "close_window",
+    params(("id" = String, Path), ("screen" = u32, Path), ("window" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn close_window(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen, window)): ApiPath<(String, u32, String)>,
@@ -3424,6 +3863,15 @@ async fn close_window(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/{window}/arrange",
+    tag = "windows",
+    operation_id = "arrange_window",
+    request_body = Arrange,
+    params(("id" = String, Path), ("screen" = u32, Path), ("window" = String, Path)),
+    responses((status = 200, description = "Done", body = Window), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn arrange_window(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen, window)): ApiPath<(String, u32, String)>,
@@ -3438,6 +3886,14 @@ async fn arrange_window(
     Ok(Json(screen.arrange(&window, how).await?))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/active",
+    tag = "windows",
+    operation_id = "active_window",
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = Option<Window>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn active_window(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -3451,6 +3907,15 @@ async fn active_window(
     Ok(Json(screen.active_window().await?))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/screens/{screen}/windows/wait",
+    tag = "windows",
+    operation_id = "await_window",
+    request_body = AwaitWindow,
+    params(("id" = String, Path), ("screen" = u32, Path)),
+    responses((status = 200, description = "Done", body = Window), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn await_window(
     State(state): State<Arc<AppState>>,
     ApiPath((id, screen)): ApiPath<(String, u32)>,
@@ -3554,6 +4019,13 @@ async fn take_revoked(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/catalog",
+    tag = "runtimes",
+    operation_id = "catalog",
+    responses((status = 200, description = "Done", body = BTreeMap<String, holm_types::App>), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn catalog() -> Json<BTreeMap<String, holm_types::App>> {
     Json(holm::apps::builtin())
 }
@@ -3631,6 +4103,13 @@ impl Idempotent {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/runtimes",
+    tag = "runtimes",
+    operation_id = "list_runtimes",
+    responses((status = 200, description = "Done", body = RuntimeList), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_runtimes(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -3695,6 +4174,14 @@ async fn funded(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/runtimes/{name}",
+    tag = "runtimes",
+    operation_id = "get_runtime",
+    params(("name" = String, Path)),
+    responses((status = 200, description = "Done", body = RuntimeView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn get_runtime(
     State(state): State<Arc<AppState>>,
     ApiPath(name): ApiPath<String>,
@@ -3708,6 +4195,15 @@ async fn get_runtime(
     Ok(Json(runtime.view(*holding.get(&name).unwrap_or(&0))))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/boxes/{id}/apps",
+    tag = "boxes",
+    operation_id = "install_apps",
+    request_body = InstallApps,
+    params(("id" = String, Path)),
+    responses((status = 200, description = "Done", body = InstalledApps), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn install_apps(
     State(state): State<Arc<AppState>>,
     ApiPath(id): ApiPath<String>,
@@ -3731,6 +4227,15 @@ async fn install_apps(
     Ok(Json(InstalledApps { installed }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/runtimes/{name}/image",
+    tag = "images",
+    operation_id = "prepare_image",
+    request_body = PrepareImage,
+    params(("name" = String, Path)),
+    responses((status = 200, description = "Done", body = PreparedImage), (status = 202, description = "Accepted; still in progress", body = PreparedImage), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn prepare_image(
     State(state): State<Arc<AppState>>,
     ApiPath(name): ApiPath<String>,
@@ -3778,6 +4283,14 @@ async fn prepare_image(
     .into_response())
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/runtimes/{name}/images/{digest}",
+    tag = "images",
+    operation_id = "image_status",
+    params(("name" = String, Path), ("digest" = String, Path)),
+    responses((status = 200, description = "Done", body = PreparedImage), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn image_status(
     State(state): State<Arc<AppState>>,
     ApiPath((name, digest)): ApiPath<(String, String)>,
@@ -3811,6 +4324,13 @@ async fn image_status(
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/images",
+    tag = "images",
+    operation_id = "list_images",
+    responses((status = 200, description = "Done", body = ImageList), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_images(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -3826,6 +4346,14 @@ async fn list_images(
     Ok(Json(ImageList { images }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/runtimes/{name}/images",
+    tag = "images",
+    operation_id = "list_runtime_images",
+    params(("name" = String, Path)),
+    responses((status = 200, description = "Done", body = ImageList), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn list_runtime_images(
     State(state): State<Arc<AppState>>,
     ApiPath(name): ApiPath<String>,
@@ -3860,6 +4388,14 @@ async fn manifest(state: &AppState, runtime: Option<&str>) -> ApiResult<Vec<Imag
     Ok(images)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/runtimes/{name}/images/{digest}",
+    tag = "images",
+    operation_id = "forget_image",
+    params(("name" = String, Path), ("digest" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn forget_image(
     State(state): State<Arc<AppState>>,
     ApiPath((name, digest)): ApiPath<(String, String)>,
@@ -3903,6 +4439,14 @@ async fn forget_image(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/runtimes",
+    tag = "runtimes",
+    operation_id = "add_runtime",
+    request_body = NewRuntime,
+    responses((status = 201, description = "Created", body = RuntimeView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn add_runtime(
     State(state): State<Arc<AppState>>,
     Extension(caller): Extension<Caller>,
@@ -3939,6 +4483,15 @@ async fn add_runtime(
     Ok((StatusCode::CREATED, Json(view)).into_response())
 }
 
+#[utoipa::path(
+    patch,
+    path = "/v1/runtimes/{name}",
+    tag = "runtimes",
+    operation_id = "change_runtime",
+    request_body = ChangeRuntime,
+    params(("name" = String, Path)),
+    responses((status = 200, description = "Done", body = RuntimeView), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn change_runtime(
     State(state): State<Arc<AppState>>,
     ApiPath(name): ApiPath<String>,
@@ -3970,6 +4523,14 @@ async fn change_runtime(
     Ok(Json(runtime.view(*holding.get(&name).unwrap_or(&0))))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/v1/runtimes/{name}",
+    tag = "runtimes",
+    operation_id = "forget_runtime",
+    params(("name" = String, Path)),
+    responses((status = 204, description = "Done"), (status = "default", description = "The failure, as an ErrorBody", body = ErrorBody))
+)]
 async fn forget_runtime(
     State(state): State<Arc<AppState>>,
     ApiPath(name): ApiPath<String>,

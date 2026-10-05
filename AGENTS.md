@@ -47,6 +47,20 @@ crates/holm-mcp/ui/build.sh
 git diff --exit-code -- crates/holm-mcp/ui/screen.html
 ```
 
+The OpenAPI spec the clients under `clients/` are generated from is committed, and `cargo test -p holm-server --test openapi` fails when it is not what the routes describe:
+
+```bash
+cargo run -p holm-server --example openapi
+```
+
+The TypeScript client's types are generated from that spec and committed, and its tests fail when an operation in the spec has no client method. `clients/` is one npm workspace with the client and the React components, which build on the client:
+
+```bash
+cd clients && npm ci
+npm run generate -w @holm/client && git diff --exit-code -- typescript/src/schema.ts
+npm run build -w @holm/client && npm run check --workspaces && npm test --workspaces
+```
+
 The shell that goes inside an image is not compiled either:
 
 ```bash
