@@ -1014,6 +1014,7 @@ fn x11_windows() -> String {
         r#"shown=$(xdotool search --onlyvisible --name . 2>/dev/null)
 managed=$(for h in $(wmctrl -l 2>/dev/null | cut -d' ' -f1); do echo $((h)); done)
 for w in $(printf '%s\n' $shown $managed | awk '!seen[$0]++'); do
+case "$(xprop -id $w _NET_WM_WINDOW_TYPE 2>/dev/null)" in *_TYPE_DOCK*|*_TYPE_DESKTOP*) continue ;; esac
 {}
 done"#,
         x11_window("continue")
@@ -1772,6 +1773,13 @@ mod tests {
             script.contains("wmctrl -l"),
             "a minimised window is unmapped, so only the window manager lists it: {script}"
         );
+    }
+
+    #[test]
+    fn test_a_panel_is_not_listed_as_a_window() {
+        let script = x11_windows();
+
+        assert!(script.contains("_TYPE_DOCK"), "{script}");
     }
 
     #[test]
